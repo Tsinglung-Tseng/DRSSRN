@@ -1,4 +1,4 @@
-from drssrn_symbol import ResNet50,residual_block
+from src.drssrn_symbol import residual_block
 import keras.backend as K
 
 
