@@ -40,6 +40,29 @@ class DataGen:
         for i in itertools.count(1):
             # TODO uncoupling path
             yield self.file.root.data[i][0], self.file.root.data[i][1], self.file.root.data[i][2]
+
+
+class DataIte:
+    def __init__(self):
+        ds = tf.data.Dataset.range(25,300)
+        ds = ds.shuffle(buffer_size=10)
+        ds = ds.batch(BATCH_SIZE)
+
+
+        a_iterator = tf.data.Iterator.from_structure(tf.int64, tf.TensorShape([]))
+        prediction = a_iterator.get_next()
+
+        ds_iterator = a_iterator.make_initializer(ds)
+
+
+        with tf.Session() as sess:
+            sess.run(ds_iterator)
+            while True:
+                try:
+                    print(sess.run(prediction))
+                except tf.errors.OutOfRangeError:
+                    break
+
 # class gen:
 #     """
 #     g = gen(file)
