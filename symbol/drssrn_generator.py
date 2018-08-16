@@ -1,7 +1,6 @@
 import tensorflow as tf
 import itertools
 import tables
-import matplotlib.pyplot as plt
 
 DEFAULT_FILE = '/home/qinglong/node3share/analytical_phantom_sinogram.h5'
 file = tables.open_file(DEFAULT_FILE)

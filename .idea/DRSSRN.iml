@@ -6,6 +6,8 @@
     </content>
     <orderEntry type="jdk" jdkName="Remote Python 3.6.5 (sftp://qinglong@192.168.1.133:22/home/qinglong/anaconda3/bin/python)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="R User Library" level="project" />
+    <orderEntry type="library" name="R Skeletons" level="application" />
   </component>
   <component name="PyDocumentationSettings">
     <option name="renderExternalDocumentation" value="true" />
