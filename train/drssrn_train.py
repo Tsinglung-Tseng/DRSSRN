@@ -1,4 +1,4 @@
-from src.drssrn_symbol import residual_block
+from symbol.drssrn_symbol_old import residual_block
 import keras.backend as K
 
 

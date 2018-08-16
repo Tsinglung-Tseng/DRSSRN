@@ -5,7 +5,7 @@ import math
 from dxl.learn.model.crop import random_crop
 
 def load_dataset():
-    # TODO - somehow standardize
+
     train_dataset = h5py.File('datasets/train_signs.h5', "r")
     train_set_x_orig = np.array(train_dataset["train_set_x"][:])
     train_set_y_orig = np.array(train_dataset["train_set_y"][:])
@@ -53,7 +53,6 @@ def generate_arrays_from_file(path):
         f = open(path)
         for line in f:
             x, y = process_line(line)
-            # TODO implementing line handler
             img = load_images(x)
             yield (img, y)
         f.close()
@@ -65,4 +64,3 @@ def celu(x):
     return x
 
 def random_crop_keras():
-    # TODO implement keras interface to utilize dxl random_crop
