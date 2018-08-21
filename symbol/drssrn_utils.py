@@ -1,4 +1,4 @@
-# from dxl.learn.model import shape_as_list, random_crop_offset, random_crop,
+from dxl.learn.model.crop import shape_as_list, random_crop_offset, random_crop, boundary_crop, align_crop, shape_as_list
 import tensorflow as tf
 import itertools
 import tables
@@ -35,6 +35,7 @@ class DataGen:
             .from_generator(self._gen,
                             (tf.float32, tf.int8, tf.float32),
                             (tf.TensorShape([256, 256]), tf.TensorShape([]), tf.TensorShape([320, 320])))
+            .shuffle(buffer_size=1000)
             .batch(batch_size)
             .make_one_shot_iterator()
             .get_next()
@@ -77,6 +78,7 @@ class DownSampler:
     """
     def __init__(self, input, down_sample_ratios, batch_size):
         self.input = input
+        self.input_shape = shape_as_list(input)
         self.down_sample_ratios = down_sample_ratios
         self.batch_size = batch_size
         self.input_dim = len(self.shape_as_list(input))
@@ -88,45 +90,73 @@ class DownSampler:
             return list(input.shape.as_list())
 
     def _output_size(self):
-        if (self.input_dim != 2) and (self.input_dim != 3):
-            raise ValueError("Unsupported tensor dimension: {}, only 2D or 3D tensors are accepted.".format(self.input_dim))
-        else:
-            if self.input_dim == 2:
-                return self._get_down_sample_img_size(self.shape_as_list(self.input))
-            else:
-                tensor_dim = self.shape_as_list(self.input)
-                img_dim = self._get_down_sample_img_size(tensor_dim[1:])
-                img_dim.insert(0, self.batch_size)
-                img_dim.append(1)
-                return img_dim
+        return [self.input_shape[0]] + [self.input_shape[x]
+                                        // self.down_sample_ratios
+                                        for x in range(1,3)] + [self.input_shape[3]]
+
+
+    # def _output_size(self):
+    #     if (self.input_dim != 2) and (self.input_dim != 3):
+    #         raise ValueError("Unsupported tensor dimension: {}, only 2D or 3D tensors are accepted.".format(self.input_dim))
+    #     else:
+    #         if self.input_dim == 2:
+    #             return self._get_down_sample_img_size(self.shape_as_list(self.input))
+    #         else:
+    #             tensor_dim = self.shape_as_list(self.input)
+    #             img_dim = self._get_down_sample_img_size(tensor_dim[1:])
+    #             img_dim.insert(0, self.batch_size)
+    #             img_dim.append(1)
+    #             return img_dim
 
     def _get_down_sample_img_size(self, origin_dim):
         return list(np.ceil(np.divide(origin_dim, self.down_sample_ratios)).astype(np.int32))
 
-    def shape_plus(self):
-        if (self.input_dim != 2) and (self.input_dim != 3):
-            raise ValueError("Unsupported tensor dimension: {}, only 2D or 3D tensors are accepted.".format(self.input_dim))
-        else:
-            if self.input_dim == 2:
-                shape_plus = self.shape_as_list(self.input)
-                shape_plus.append(1)
-                return shape_plus
-            else:
-                shape_plus = self.shape_as_list(self.input)
-                shape_plus[0] = self.batch_size
-                shape_plus.append(1)
-                return shape_plus
+    # # TODO Move to DataGen or separate independently
+    # def shape_plus(self):
+    #     if (self.input_dim != 2) and (self.input_dim != 3):
+    #         raise ValueError("Unsupported tensor dimension: {}, only 2D or 3D tensors are accepted.".format(self.input_dim))
+    #     else:
+    #         if self.input_dim == 2:
+    #             shape_plus = self.shape_as_list(self.input)
+    #             shape_plus.append(1)
+    #             return shape_plus
+    #         else:
+    #             shape_plus = self.shape_as_list(self.input)
+    #             shape_plus[0] = self.batch_size
+    #             shape_plus.append(1)
+    #             return shape_plus
 
     def __call__(self):
-        shape_plus = self.shape_plus()
-        input_reshaped = tf.reshape(self.input, shape_plus)
-        if self.input_dim == 2:
-            return tf.image.resize_images(input_reshaped, tf.convert_to_tensor(self.output_size, dtype=tf.int32))
-        else:
-            return tf.image.resize_images(input_reshaped, tf.convert_to_tensor(self.output_size[1:3], dtype=tf.int32))
+        return tf.image.resize_images(self.input, tf.convert_to_tensor(self.output_size[1:3], dtype=tf.int32))
 
-# class AlignedCroper:
 
+    # def __call__(self):
+    #     shape_plus = self.shape_plus()
+    #     input_reshaped = tf.reshape(self.input, shape_plus)
+    #     if self.input_dim == 2:
+    #         return tf.image.resize_images(input_reshaped, tf.convert_to_tensor(self.output_size, dtype=tf.int32))
+    #     else:
+    #         return tf.image.resize_images(input_reshaped, tf.convert_to_tensor(self.output_size[1:3], dtype=tf.int32))
+
+
+class AlignSampler:
+    def __init__(self, input_low, input_high, target_shape_on_low):
+        self.input_low = input_low
+        self.input_high = input_high
+        self.input_low_shape = shape_as_list(input_low)
+        self.input_high_shape = shape_as_list(input_high)
+        self.target_shape_on_low = target_shape_on_low
+        self.target_shape_on_high = list(np.multiply(target_shape_on_low, self._scale()))
+        self.crop_offset_low = random_crop_offset(self.input_low_shape, self.target_shape_on_low)
+        self.crop_offset_high = np.multiply(self._scale(), self.crop_offset_low)
+
+    def _scale(self):
+        scale = [x//y for x, y in zip(self.input_high_shape, self.input_low_shape)]
+        return scale
+
+    def __call__(self):
+        return (tf.slice(self.input_low, self.crop_offset_low, self.target_shape_on_low),
+                tf.slice(self.input_high, self.crop_offset_high, self.target_shape_on_high))
 
 
 # if __name__ == '__main__':

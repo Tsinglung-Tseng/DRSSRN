@@ -1,18 +1,29 @@
-from dxl.learn.core import Graph, Model
-from dxl.learn.model.cnn import UpSampling2D, Conv2D
-from dxl.learn.model.crop import boundary_crop, align_crop, shape_as_list
-from dxl.learn.model.cnn import UpSampling2D, Conv2D
 
-class SRKeys:
-    pass
 
+class ResBlock:
+    def __init__(self):
+        self.x_a = tf.layers.conv2d(inputs,
+                                    filters,
+                                    kernel_size,
+                                    strides=(1, 1),
+                                    padding='valid',
+                                    data_format='channels_last',
+                                    dilation_rate=(1, 1),
+                                    activation=None,
+                                    use_bias=True,
+                                    kernel_initializer=None,
+                                    bias_initializer=tf.zeros_initializer(),
+                                    kernel_regularizer=None,
+                                    bias_regularizer=None,
+                                    activity_regularizer=None,
+                                    trainable=True,
+                                    name=None,
+                                    reuse=None)
 
 class SRTrys(Model):
 
     # TODO
-    class
 
-    pass
 
 g = SRTrys('g')
 g.make()
