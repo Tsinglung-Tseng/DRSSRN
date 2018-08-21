@@ -1,39 +1,32 @@
 import tensorflow as tf
-import tables
-import numpy as np
-#from dxl.learn.model import random_crop
 
-DEFAULT_FILE = '/home/qinglong/node3share/analytical_phantom_sinogram.h5'
+with tf.Graph().as_default() as g:
+    c = tf.constant(5.0, name="c")
+    assert c.op.name == "c"
+    c_1 = tf.constant(6.0, name="c")
+    assert c_1.op.name == "c_1"
 
-config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
-config.log_device_placement = True
+    # Creates a scope called "nested"
+    with g.name_scope("nested") as scope:
+        nested_c = tf.constant(10.0, name="c")
+        assert nested_c.op.name == "nested/c"
 
-f = tables.open_file(DEFAULT_FILE)
+        # Creates a nested scope called "inner".
+        with g.name_scope("inner"):
+            nested_inner_c = tf.constant(20.0, name="c")
+            assert nested_inner_c.op.name == "nested/inner/c"
 
-sino_ph = tf.placeholder(tf.float32, shape=[None,320,320])
-sino_raw,*_ = f.root.data
+        # Create a nested scope called "inner_1".
+        with g.name_scope("inner"):
+            nested_inner_1_c = tf.constant(30.0, name="c")
+            assert nested_inner_1_c.op.name == "nested/inner_1/c"
 
-mb = tf.train.batch(
-    tensors=sino_raw,
-    batch_size=64,
-    num_threads=1,
-    capacity=32,
-    enqueue_many=False,
-    shapes=None,
-    dynamic_pad=False,
-    allow_smaller_final_batch=True,
-    shared_name=None,
-    name=None
-)
+        # Treats `scope` as an absolute name scope, and
+        # switches to the "nested/" scope.
+        with g.name_scope(scope):
+            nested_d = tf.constant(40.0, name="d")
+            assert nested_d.op.name == "nested/d"
 
-
-
-# down_sampled = tf.image.central_crop(
-#     image=mb,
-#     central_fraction
-# )
-
-sess = tf.Session(config=config)
-sess.run(tf.initialize_all_variables())
-sess.run(mb)
+            with g.name_scope(""):
+                e = tf.constant(50.0, name="e")
+                assert e.op.name == "e"
