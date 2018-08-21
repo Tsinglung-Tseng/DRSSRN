@@ -1,3 +1,4 @@
+# from dxl.learn.model import shape_as_list, random_crop_offset, random_crop,
 import tensorflow as tf
 import itertools
 import tables
@@ -9,7 +10,6 @@ DEFAULT_FILE = '/home/qinglong/node3share/analytical_phantom_sinogram.h5'
 file = tables.open_file(DEFAULT_FILE)
 
 
-
 class DataGen:
     """
     A data generator for phantom and sinogram dataset.
@@ -18,8 +18,8 @@ class DataGen:
     with tf.Session() as sess:
         sess.run(g.next_batch)
     """
-    def __init__(self, file, batch_size=32):
-        self._file = file
+    def __init__(self, _file, batch_size=32):
+        self._file = _file
         self.batch_size = batch_size
         self.next_one = (
             tf.data.Dataset
@@ -71,9 +71,9 @@ class DataIte:
 
 class DownSampler:
     """
-    d = DownSampler(input, down_sample_ratios)
+    d = DownSampler(input, down_sample_ratios, batch_size)
     with tf.Session() as sess:
-        sess.run(d()
+        sess.run(d())
     """
     def __init__(self, input, down_sample_ratios, batch_size):
         self.input = input
@@ -81,11 +81,6 @@ class DownSampler:
         self.batch_size = batch_size
         self.input_dim = len(self.shape_as_list(input))
         self.output_size = self._output_size()
-
-    # @classmethod
-    # def shape_as_list(cls, input):
-    #     if isinstance(input, tf.Tensor):
-    #         return input.shape.as_list()
 
     @staticmethod
     def shape_as_list(input):
@@ -98,21 +93,17 @@ class DownSampler:
         else:
             if self.input_dim == 2:
                 return self._get_down_sample_img_size(self.shape_as_list(self.input))
-                # return list(np.ceil(np.divide(self.shape_as_list(self.input), down_sample_ratios)).astype(np.int32))
             else:
                 tensor_dim = self.shape_as_list(self.input)
-                # print(tensor_dim)
                 img_dim = self._get_down_sample_img_size(tensor_dim[1:])
                 img_dim.insert(0, self.batch_size)
                 img_dim.append(1)
-                # print('****************************_output_size****************************')
-                # print(img_dim)
                 return img_dim
 
     def _get_down_sample_img_size(self, origin_dim):
         return list(np.ceil(np.divide(origin_dim, self.down_sample_ratios)).astype(np.int32))
 
-    def _shape_plus(self):
+    def shape_plus(self):
         if (self.input_dim != 2) and (self.input_dim != 3):
             raise ValueError("Unsupported tensor dimension: {}, only 2D or 3D tensors are accepted.".format(self.input_dim))
         else:
@@ -127,40 +118,36 @@ class DownSampler:
                 return shape_plus
 
     def __call__(self):
-        # shape_plus = self.shape_as_list(self.input)
-        # shape_plus[0] = self.batch_size
-        shape_plus = self._shape_plus()
-        # shape_plus.append(1)
-        # print('****************************__call__****************************')
-        # print(shape_plus)
+        shape_plus = self.shape_plus()
         input_reshaped = tf.reshape(self.input, shape_plus)
         if self.input_dim == 2:
             return tf.image.resize_images(input_reshaped, tf.convert_to_tensor(self.output_size, dtype=tf.int32))
         else:
             return tf.image.resize_images(input_reshaped, tf.convert_to_tensor(self.output_size[1:3], dtype=tf.int32))
 
+# class AlignedCroper:
 
-if __name__ == '__main__':
-    # print('****************************__main__****************************')
-    g = DataGen(file)
-    with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        a,b,c = g.next_batch
 
-        # DownSampler.shape_as_list(a)
-        d = DownSampler(a, 8, g.batch_size)
 
-    with tf.Session() as sess:
-        img_down_sample_x2 = sess.run(d())
-
-    # plt.imshow(img_down_sample_x2.reshape(d.output_size))
-    # plt.colorbar()
-    # plt.show()
-
-    img = img_down_sample_x2[1]
-    plt.imshow(img.reshape(d.output_size[1:3]))
-    plt.colorbar()
-    plt.show()
+# if __name__ == '__main__':
+#     g = DataGen(file)
+#     with tf.Session() as sess:
+#         sess.run(tf.global_variables_initializer())
+#         a,b,c = g.next_batch
+#
+#         d = DownSampler(a, 8, g.batch_size)
+#
+#     with tf.Session() as sess:
+#         img_down_sample_x2 = sess.run(d())
+#
+#     # plt.imshow(img_down_sample_x2.reshape(d.output_size))
+#     # plt.colorbar()
+#     # plt.show()
+#
+#     # img = img_down_sample_x2[1]
+#     # plt.imshow(img.reshape(d.output_size[1:3]))
+#     # plt.colorbar()
+#     # plt.show()
 
 # class gen:
 #     """
