@@ -1,4 +1,4 @@
-from src.drssrn_symbol import residual_block, inference_block
+from drssrn_symbol import residual_block, inference_block
 import tensorflow as tf
 import numpy as np
 import keras.backend as K

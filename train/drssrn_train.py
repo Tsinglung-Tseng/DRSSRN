@@ -4,47 +4,44 @@ from dxl.learn.model import random_crop
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import tables
+import numpy as np
+
+# matplotlib.get_backend()
+# 'module://backend_interagg'
+
 
 DEFAULT_FILE = '/home/qinglong/node3share/analytical_phantom_sinogram.h5'
 file = tables.open_file(DEFAULT_FILE)
-DOWN_SAMPLING_RATIO = 4
+
 BATCH_SIZE = 32
-CROP_TARGET_SHAPE = [BATCH_SIZE, 40, 40, 1]
-SAMPLER_TARGET_SHAPE = [BATCH_SIZE, 8, 8, 1]
+DOWN_SAMPLING_RATIO = 4
+SAMPLER_TARGET_SHAPE = [BATCH_SIZE, 16, 16, 1]
 
-data_generator = DataGen(file, batch_size=BATCH_SIZE)
-
-# shape=(?, 256, 256)
-phantom, phantom_type, sinogram = data_generator.next_batch
-phantom = tf.reshape(phantom, [BATCH_SIZE,256,256,1])
-
-phantom_down_sampler = DownSampler(phantom, DOWN_SAMPLING_RATIO, data_generator.batch_size)
-phantom_down_sample_x = phantom_down_sampler()
-
-# shape=(32, 32, 32, 1)
-# phantom_cropped = random_crop(phantom_down_sampler(), CROP_TARGET_SHAPE)
-
-align_sampler = AlignSampler(phantom_down_sample_x, phantom, SAMPLER_TARGET_SHAPE)
-sampled_low, sampled_high = align_sampler()
-
-# img, label =
-
-with tf.Session() as sess:
-    img_down_sample_x2 = sess.run(phantom_down_sample_x)
-    img_low_sampled = sess.run(sampled_low)
-    img_high_sampled = sess.run(sampled_high)
+def show_aspr(imshow_index = 1):
+    fig, (ax1, ax2) = plt.subplots(1,2,figsize=(8,4))
+    ax1.set_title('align_cropped_low')
+    ax1.imshow(align_cropped_low[imshow_index].reshape(SAMPLER_TARGET_SHAPE[1:3]))
+    ax2.set_title('align_cropped_high')
+    ax2.imshow(align_cropped_high[imshow_index]
+               .reshape(list(np.multiply(SAMPLER_TARGET_SHAPE[1:3],DOWN_SAMPLING_RATIO))))
+    plt.show()
 
 
+d = DataGen(file, BATCH_SIZE)
+ds = DownSampler(d.phantom, DOWN_SAMPLING_RATIO)
+aspr = AlignSampler(ds(), d.phantom, SAMPLER_TARGET_SHAPE)
 
 
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+config.log_device_placement = True
 
+with tf.Session(config=config) as sess:
+    align_cropped_low, align_cropped_high = sess.run(aspr())
+
+
+show_aspr()
 
 
 
 
-# #
-# img = img_down_sample_x2[14]
-# # plt.imshow(img.reshape(phantom_down_sampler.output_size[1:3]))
-# plt.imshow(img.reshape(CROP_TARGET_SIZE[1:3]))
-# plt.colorbar()
-# plt.show()
