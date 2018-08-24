@@ -67,7 +67,7 @@ superRe2x_ins = SuperResolution2x('sR',
 res = superRe2x_ins()
 train_op = tf.train.AdamOptimizer(0.0001).minimize(res['loss'])
 
-tf.summary.scalar("loss", res['loss'])
+tf.summary.scalar("loss_0", res['loss'])
 merged_summary = tf.summary.merge_all()
 
 sess = tf.Session(config=config)
@@ -75,19 +75,18 @@ writer = tf.summary.FileWriter(FLAGS.SUMMARY.SUMMARY_DIR, sess.graph)
 
 sess.run(tf.global_variables_initializer())
 
-flag = True
 counter = 0
-while flag:
+while True:
     try:
-        _, loss_temp, summary = sess.run([train_op, res['loss'], res['inference'], merged_summary])
+        _, loss_temp, summary = sess.run([train_op, res['loss'], merged_summary])
         writer.add_summary(summary, counter)
         counter += 1
         if counter % 100 == 0:
             print(f'Loss after {counter} batch is {loss_temp}')
 
-    except StopIteration:
-        print('done')
-        flag = False
+    except tf.errors.OutOfRangeError:
+        print('Done')
+        break
 
 
 
