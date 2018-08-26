@@ -33,8 +33,11 @@ class DataGen:
         )
 
     def _gen(self):
-        for i in itertools.count(1):
-            yield self._file.root.data[i][0], self._file.root.data[i][1], self._file.root.data[i][2]
+        for i in itertools.count(780000):
+            try:
+                yield self._file.root.data[i][0], self._file.root.data[i][1], self._file.root.data[i][2]
+            except IndexError:
+                break
 
     @property
     def phantom(self):

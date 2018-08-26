@@ -28,5 +28,5 @@ with tf.Graph().as_default() as g:
             assert nested_d.op.name == "nested/d"
 
             with g.name_scope(""):
-                e = tf.constant(50.0, name="e")
-                assert e.op.name == "e"
+                e = tf.constant(50.0, name="c")
+                assert e.op.name == "c_2"

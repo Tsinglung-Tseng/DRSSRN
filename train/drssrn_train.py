@@ -19,27 +19,6 @@ from sklearn.metrics import mean_squared_error
 DEFAULT_FILE = '/home/qinglong/node3share/analytical_phantom_sinogram.h5'
 file = tables.open_file(DEFAULT_FILE)
 
-class Clock:
-    def clock(func):
-        @functools.wraps(func)
-        def clocked(*args, **kwargs):
-            t0 = time.time()
-            result = func(*args, **kwargs)
-            elapsed = time.time() - t0
-            name = func.__name__
-            arg_lst = []
-            if args:
-                arg_lst.append(', '.join(repr(arg) for arg in args))
-            if kwargs:
-                pairs = ['%s=%r' % (k, w) for k, w in sorted(kwargs.items())]
-                arg_lst.append(', '.join(pairs))
-
-            arg_str = ', '.join(arg_lst)
-            print('[%0.8fs] %s(%s) -> %r' % (elapsed, name, arg_str, result))
-            return result
-
-        return clocked
-
 class FLAGS:
     class TRAIN:
         BATCH_SIZE = 32
@@ -47,7 +26,7 @@ class FLAGS:
         SAMPLER_TARGET_SHAPE = [BATCH_SIZE, 64, 64, 1]
 
     class SUMMARY:
-        SUMMARY_DIR = '/home/qinglong/node3share/remote_drssrn/tensorboard_log'
+        SUMMARY_DIR = '/home/qinglong/node3share/remote_drssrn/tensorboard_log/drssrn_3_epoch'
 
 
 d = DataGen(file, FLAGS.TRAIN.BATCH_SIZE)
@@ -87,6 +66,7 @@ while True:
     except tf.errors.OutOfRangeError:
         print('Done')
         break
+
 
 
 

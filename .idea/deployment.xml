@@ -5,7 +5,7 @@
       <paths name="qinglong@192.168.1.133:22">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/qinglong/node3share/remote_drssrn" local="$PROJECT_DIR$" />
+            <mapping deploy="/tmp/pycharm_project_917" local="$PROJECT_DIR$" />
           </mappings>
         </serverdata>
       </paths>

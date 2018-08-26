@@ -8,7 +8,7 @@ setup(name='drssrn',
                         'six>=1.9.0',
                         'tables',
                         'h5py'],
-      },
+      namespace_packages=['DRSSRN'],
       classifiers=[
           'Programming Language :: Python :: 3.6',
       ],
