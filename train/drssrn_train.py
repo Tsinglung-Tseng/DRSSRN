@@ -1,4 +1,4 @@
-from symbol.drssrn_utils import DataGen, DownSampler, AlignSampler
+from symbol.drssrn_utils import DataGen, DownSampler, AlignSampler, psnr
 # from incident.
 from dxl.learn.model.super_resolution import SuperResolution2x, SuperResolutionBlock
 from dxl.learn.model import random_crop
@@ -9,8 +9,7 @@ import time
 import functools
 import matplotlib
 import matplotlib.pyplot as plt
-from sklearn.metrics import mean_squared_error
-
+from sklearn.preprocessing import MinMaxScaler
 
 # matplotlib.get_backend()
 # 'module://backend_interagg'
@@ -27,6 +26,17 @@ class FLAGS:
 
     class SUMMARY:
         SUMMARY_DIR = '/home/qinglong/node3share/remote_drssrn/tensorboard_log/drssrn_3_epoch'
+
+
+def show_subplot(img, label, psnr,ind=0):
+    plt.figure(1)
+    plt.suptitle("PSNR: " + str(psnr))
+    plt.subplot(121)
+    plt.imshow(img[ind].reshape(img.shape[1:3]))
+
+    plt.subplot(122)
+    plt.imshow(label[ind].reshape(label.shape[1:3]))
+    plt.show()
 
 
 d = DataGen(file, FLAGS.TRAIN.BATCH_SIZE)
@@ -57,8 +67,18 @@ sess.run(tf.global_variables_initializer())
 counter = 0
 while True:
     try:
-        _, loss_temp, summary = sess.run([train_op, res['loss'], merged_summary])
+        (_,
+         summary,
+         loss_temp,
+         inference,
+         aligned_label) = sess.run([train_op,
+                                    merged_summary,
+                                    res['loss'],
+                                    res['inference'],
+                                    res['aligned_label']])
         writer.add_summary(summary, counter)
+
+        temp_psnr = psnr(inference, aligned_label)
         counter += 1
         if counter % 100 == 0:
             print(f'Loss after {counter} batch is {loss_temp}')
@@ -67,8 +87,11 @@ while True:
         print('Done')
         break
 
+show_subplot(inference, aligned_label,temp_psnr)
 
 
+
+# def summary():
 
 
 
