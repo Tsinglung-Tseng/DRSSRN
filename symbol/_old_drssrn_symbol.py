@@ -16,7 +16,7 @@ def inference_block(X, n_res = 20):
 def residual_block(X,
                    scope,
                    f = (1, 1, 1, 3, 3, 3, 3),
-                   filters = (32, 32, 32, 64, 64, 64, 32),
+                   filters = (64, 64, 64, 64, 64, 64, 64),
                    strides = (1, 1, 1, 1, 1, 1, 1),
                    paddings = ('valid', 'valid', 'valid', 'same', 'same', 'same', 'same'),
                    names = ('_a', '_b', '_c', '_d', '_e', '_f', '_g'),

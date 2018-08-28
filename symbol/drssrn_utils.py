@@ -43,7 +43,7 @@ class DataGen:
         )
 
     def _gen(self):
-        for i in itertools.count(780000):
+        for i in itertools.count(0):
             try:
                 yield self._file.root.data[i][0], self._file.root.data[i][1], self._file.root.data[i][2]
             except IndexError:
@@ -144,16 +144,11 @@ def psnr(inference, label, pix_max=255.0, idx=0):
         return 100
     return 20 * math.log10(pix_max / math.sqrt(mse))
 
+
 def rescale(inputs, bin_size=255):
     window = inputs.max() - inputs.min()
     scale_rate = bin_size / window
     return inputs*scale_rate - inputs.min()*scale_rate
-
-
-
-
-
-
 
 
 class SRKeys:
