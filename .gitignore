@@ -3,3 +3,6 @@
 
 # DVC
 .dvc/
+
+# Stuff just for try
+tf_playground/

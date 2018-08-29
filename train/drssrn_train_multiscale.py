@@ -17,7 +17,7 @@ class FLAGS:
         SAMPLER_TARGET_SHAPE = [BATCH_SIZE, 32, 32, 1]
 
     class SUMMARY:
-        SUMMARY_DIR = '/home/qinglong/node3share/remote_drssrn/tensorboard_log/drssrn_inferenceblock'
+        SUMMARY_DIR = '/home/qinglong/node3share/remote_drssrn/tensorboard_log/4x_down_'
 
 
 d = DataGen(file, FLAGS.TRAIN.BATCH_SIZE)
@@ -62,8 +62,10 @@ writer = tf.summary.FileWriter(FLAGS.SUMMARY.SUMMARY_DIR, sess.graph)
 
 sess.run(tf.global_variables_initializer())
 
+
+
 counter = 0
-print("Training4x...")
+print("Training 4x...")
 while True:
     try:
         (_,
@@ -84,7 +86,7 @@ while True:
         writer.add_summary(summary, counter)
 
         counter += 1
-        if counter % 1000 == 0:
+        if counter % 100 == 0:
             print(f'Loss after {counter} batch is {loss_temp}')
             temp_psnr = psnr(inference, aligned_label)
             show_subplot(interp, inference, aligned_label, psnr=temp_psnr, counter=counter)
