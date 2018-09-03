@@ -1,6 +1,7 @@
 from symbol.drssrn_utils import DataGen, DownSampler, AlignSampler, psnr, rescale_batch
 from dxl.learn.model.super_resolution import SuperResolution2x
 from dxl.learn.model.cnn.blocksv2 import Conv2D, Inception, Residual
+from dxl.learn.model.cnn import DownSampling2D
 from dxl.learn.model.base import Stack, as_model, Model
 from doufo import List, identity
 from dxl.learn.model.crop import shape_as_list
@@ -16,11 +17,11 @@ file = tables.open_file(DEFAULT_FILE)
 class FLAGS:
     class TRAIN:
         BATCH_SIZE = 32
-        DOWN_SAMPLING_RATIO = 2
-        SAMPLER_TARGET_SHAPE = [BATCH_SIZE, 64, 64, 1]
+        DOWN_SAMPLING_RATIO = 4
+        SAMPLER_TARGET_SHAPE = [BATCH_SIZE, 32, 32, 1]
 
     class SUMMARY:
-        SUMMARY_DIR = '/home/qinglong/node3share/remote_drssrn/tensorboard_log/2xDown_new_1'
+        SUMMARY_DIR = '/home/qinglong/node3share/remote_drssrn/tensorboard_log/4xDown_3'
 
 
 def show_subplot(interp, inference, label, psnr, counter, ind=0):
@@ -38,6 +39,7 @@ def show_subplot(interp, inference, label, psnr, counter, ind=0):
     plt.subplot(133)
     plt.title('label')
     plt.imshow(label[ind].reshape(label.shape[1:3]))
+
     plt.show()
 
 
@@ -66,14 +68,15 @@ class Merge(Model):
         return self.model(x)
 
 
-SRx2 = list([])
-for i in range(4):
-    SRx2.append(Residual(f'residual_{i}',
-                Inception(f'incept_{i}', identity,
-                          [incept_path(i, 64) for i in range(3)],
-                          Merge(64)),
-                ratio=0.3))
-SRx2 = Stack(SRx2)
+def SRx2(sr_block, num_layer=5):
+    SRx2 = list([])
+    for i in range(num_layer):
+        SRx2.append(Residual(f'residual_{i}_{sr_block}',
+                    Inception(f'incept_{i}_{sr_block}', identity,
+                              [incept_path(i, 64) for i in range(3)],
+                              Merge(64)),
+                    ratio=0.3))
+    return Stack(SRx2)
 
 
 d = DataGen(file, FLAGS.TRAIN.BATCH_SIZE)
@@ -91,25 +94,43 @@ train_low = tf.map_fn(tf.image.per_image_standardization, train_low)
 train_high = tf.reshape(tf.py_func(rescale_batch, [train_high], tf.float32), train_high_shape)
 train_low = tf.reshape(tf.py_func(rescale_batch, [train_low], tf.float32), train_low_shape)
 
+downsampling2d_ins = DownSampling2D("res_0_downsampling",
+                                    inputs=train_high,
+                                    size=[2*i for i in FLAGS.TRAIN.SAMPLER_TARGET_SHAPE[1:3]],
+                                    is_scale=False,
+                                    method=2)
+train_high_x2 = downsampling2d_ins()
+
 
 with tf.device('/device:GPU:1'):
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     config.log_device_placement = True
 
-    superRe2x_ins = SuperResolution2x('sR',
-                                      inputs={'input': train_low, 'label': train_high},
-                                      nb_layers=5,
-                                      filters=64,
-                                      boundary_crop=[4, 4],
-                                      graph=SRx2)
-    res = superRe2x_ins()
+    superRe2x_ins_0 = SuperResolution2x('sR_0',
+                                        inputs={'input': train_low, 'label': train_high_x2},
+                                        nb_layers=5,
+                                        filters=64,
+                                        boundary_crop=[4, 4],
+                                        graph=SRx2(sr_block=0))
+    res_0 = superRe2x_ins_0()
+
+    superRe2x_ins_1 = SuperResolution2x('sR_1',
+                                        inputs={'input': res_0['inference'],
+                                                #'input': res_0['reps'],
+                                                'label': train_high},
+                                        nb_layers=5,
+                                        filters=64,
+                                        boundary_crop=[4, 4],
+                                        graph=SRx2(sr_block=1))
+    res_1 = superRe2x_ins_1()
+    loss = 0.3*res_0['loss'] + res_1['loss']
 
 
-tf_psnr = tf.image.psnr(res['inference'][0], res['aligned_label'][0], max_val=255)
-train_op = tf.train.AdamOptimizer(0.00001).minimize(res['loss'])
+tf_psnr = tf.image.psnr(res_1['inference'][0], res_1['aligned_label'][0], max_val=255)
+train_op = tf.train.AdamOptimizer(0.00001).minimize(loss)
 
-tf.summary.scalar("loss", res['loss'])
+tf.summary.scalar("loss", res_1['loss'])
 tf.summary.scalar("psnr", tf_psnr)
 merged_summary = tf.summary.merge_all()
 
@@ -118,9 +139,9 @@ writer = tf.summary.FileWriter(FLAGS.SUMMARY.SUMMARY_DIR, sess.graph)
 
 sess.run(tf.global_variables_initializer())
 
-counter = 0
 
-print("Training2x...")
+counter = 0
+print("Training4x...")
 while True:
     try:
         (_,
@@ -132,12 +153,12 @@ while True:
          resi,
          interp) = sess.run([train_op,
                              merged_summary,
-                             res['loss'],
-                             res['inference'],
-                             res['aligned_label'],
-                             res['reps'],
-                             res['resi'],
-                             res['interp']])
+                             res_1['loss'],
+                             res_1['inference'],
+                             res_1['aligned_label'],
+                             res_1['reps'],
+                             res_1['resi'],
+                             res_1['interp']])
         writer.add_summary(summary, counter)
 
         counter += 1
@@ -149,37 +170,3 @@ while True:
     except tf.errors.OutOfRangeError:
         print('Done')
         break
-
-
-
-# def residuals(x):
-#     for i in range(20):
-#         with tf.variable_scope(f'layer_{i}'):
-#             h = tf.layers.conv2d(x, 64, 3, activation=tf.nn.elu, padding='same')
-#             x = x + 0.3 * h
-#     return x
-
-
-# def inference_block(x):
-#     for i in range(5):
-#         with tf.variable_scope(f'infer_layer_{i}'):
-#             x_a = x
-#             x_b = tf.nn.relu(x)
-#
-#             x_b1 = tf.layers.conv2d(x_b, 64, 1, activation=None, padding='same')
-#
-#             x_b2 = tf.layers.conv2d(x_b, 64, 1, activation=tf.nn.elu, padding='same')
-#             x_b2 = tf.layers.conv2d(x_b2, 64, 3, activation=None, padding='same')
-#
-#             x_b3 = tf.layers.conv2d(x_b, 64, 1, activation=tf.nn.elu, padding='same')
-#             x_b3 = tf.layers.conv2d(x_b3, 64, 3, activation=tf.nn.elu, padding='same')
-#             x_b3 = tf.layers.conv2d(x_b3, 64, 3, activation=None, padding='same')
-#
-#             x_bc = tf.concat([x_b1, x_b2, x_b3], axis=3)
-#             x_bc = tf.nn.relu(x_bc)
-#             x_bc = tf.layers.conv2d(x_bc, 64, 3, activation=None, padding='same')
-#
-#             res_block = x_a + 0.3 * x_bc
-#             x = x + res_block
-#
-#     return x

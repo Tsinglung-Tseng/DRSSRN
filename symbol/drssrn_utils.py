@@ -139,16 +139,20 @@ def show():
 
 
 def psnr(inference, label, pix_max=255.0, idx=0):
-    mse = np.mean((rescale(inference[idx]) - rescale(label[idx])) ** 2)
+    mse = np.mean((rescale_single(inference[idx]) - rescale_single(label[idx])) ** 2)
     if mse == 0:
         return 100
     return 20 * math.log10(pix_max / math.sqrt(mse))
 
 
-def rescale(inputs, bin_size=255):
+def rescale_single(inputs, bin_size=255):
     window = inputs.max() - inputs.min()
     scale_rate = bin_size / window
     return inputs*scale_rate - inputs.min()*scale_rate
+
+
+def rescale_batch(images):
+    return np.array([rescale_single(img) for img in images])
 
 
 class DataIte:
