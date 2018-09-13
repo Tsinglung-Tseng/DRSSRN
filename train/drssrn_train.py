@@ -1,4 +1,4 @@
-from symbol.drssrn_utils import DataGen, DownSampler, AlignSampler, psnr, rescale_batch
+from ..symbol.drssrn_utils import DataGen, DownSampler, AlignSampler, psnr, rescale_batch
 from dxl.learn.model.super_resolution import SuperResolution2x
 from dxl.learn.model.cnn.blocksv2 import Conv2D, Inception, Residual
 from dxl.learn.model.base import Stack, as_model, Model

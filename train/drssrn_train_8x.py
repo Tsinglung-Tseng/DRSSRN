@@ -21,7 +21,7 @@ class FLAGS:
         SAMPLER_TARGET_SHAPE = [BATCH_SIZE, 16, 16, 1]
 
     class SUMMARY:
-        SUMMARY_DIR = '/home/qinglong/node3share/remote_drssrn/tensorboard_log/8xDown_3'
+        SUMMARY_DIR = '/home/qinglong/node3share/remote_drssrn/tensorboard_log/8xDown_5'
 
 
 def show_subplot(interp, inference, label, psnr, counter, ind=0):
@@ -115,7 +115,8 @@ with tf.device('/device:GPU:1'):
     config.log_device_placement = True
 
     superRe2x_ins_0 = SuperResolution2x('sR_0',
-                                        inputs={'input': train_low, 'label': train_high_x2},
+                                        inputs={'input': train_low,
+                                                'label': train_high},
                                         nb_layers=5,
                                         filters=64,
                                         boundary_crop=[4, 4],
@@ -124,7 +125,8 @@ with tf.device('/device:GPU:1'):
 
     superRe2x_ins_1 = SuperResolution2x('sR_1',
                                         inputs={'input': res_0['inference'],
-                                                'label': train_high_x4},
+                                                #'reps' : res_0['reps'],
+                                                'label': train_high_x2},
                                         nb_layers=5,
                                         filters=64,
                                         boundary_crop=[4, 4],
@@ -133,6 +135,7 @@ with tf.device('/device:GPU:1'):
 
     superRe2x_ins_2 = SuperResolution2x('sR_2',
                                         inputs={'input': res_1['inference'],
+                                                #'reps': res_1['reps'],
                                                 'label': train_high},
                                         nb_layers=5,
                                         filters=64,
@@ -178,7 +181,7 @@ while True:
         writer.add_summary(summary, counter)
 
         counter += 1
-        if counter % 100 == 0:
+        if counter % 10 == 0:
             print(f'Loss after {counter} batch is {loss_temp}')
             temp_psnr = psnr(inference, aligned_label)
             show_subplot(interp, inference, aligned_label, psnr=temp_psnr, counter=counter)

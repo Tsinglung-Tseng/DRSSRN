@@ -6,3 +6,7 @@
 
 # Stuff just for try
 tf_playground/
+
+# image
+*.jpg
+*.jpeg
