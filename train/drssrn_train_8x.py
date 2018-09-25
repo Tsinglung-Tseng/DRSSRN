@@ -10,7 +10,7 @@ import tensorflow as tf
 import tables
 
 
-DEFAULT_FILE = '/home/qinglong/node3share/analytical_phantom_sinogram.h5'
+DEFAULT_FILE = "/home/qinglong/node3share/analytical_phantom_sinogram.h5"
 file = tables.open_file(DEFAULT_FILE)
 
 
@@ -125,7 +125,7 @@ with tf.device('/device:GPU:1'):
 
     superRe2x_ins_1 = SuperResolution2x('sR_1',
                                         inputs={'input': res_0['inference'],
-                                                #'reps' : res_0['reps'],
+                                                'reps' : res_0['reps'],
                                                 'label': train_high_x2},
                                         nb_layers=5,
                                         filters=64,
@@ -135,7 +135,7 @@ with tf.device('/device:GPU:1'):
 
     superRe2x_ins_2 = SuperResolution2x('sR_2',
                                         inputs={'input': res_1['inference'],
-                                                #'reps': res_1['reps'],
+                                                'reps': res_1['reps'],
                                                 'label': train_high},
                                         nb_layers=5,
                                         filters=64,

@@ -1,134 +1,124 @@
-import warnings
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpp
+from skimage.measure import block_reduce
+from tables import IsDescription, Float32Col
+import tables
+from tqdm import tqdm
+
+def cos(deg):
+    return np.cos(-1 * deg * (np.pi / 180))
 
 
-class DerenzoPhantom(object):
+def sin(deg):
+    return np.sin(deg * (np.pi / 180))
+
+
+def tan(deg):
+    return np.tan(deg * (np.pi / 180))
+
+
+L = 512
+R = 210
+# U(1,19) 20 for (1,19)
+N = 20
+rs = [R/(4*(i+tan(60))) for i in range(N)]
+
+derenzo_section = {
+    'key_point' : [(L/2-i*2*rs[i], 2*rs[i]) for i in range(N)],
+    'ver_offset' : [2*rs[i] for i in range(N)],
+    'hor_offset' : [2*rs[i]/tan(30) for i in range(N)]
+}
+
+# canvas = np.zeros([L, L])
+#
+# # U(0.0, 1.0)
+# rand1 = np.random.random_sample()
+# rand2 = np.random.random_sample()
+# res = abs(rand1-rand2)
+#
+# # U(1, 19)
+# denerzo_section_rs = np.random.choice(list(range(1,20)), 6)
+
+
+def rotate(p, th):
     """
-    Usage:
-    radius = 37.0
-    well_seps = (1.0, 6.0, 5.0, 4.0, 3.0, 2.0)
-    my_phantom = DerenzoPhantom(radius, well_seps)
-    my_phantom.show()
+    usage: rotate(P, 60)
     """
-    _num_sections = 6
+    p0 = (L / 2, L / 2)
 
-    def __init__(self, radius, well_separations, cyl_height=0, unit="mm"):
-        self.radius = radius
-        self.well_seps = well_separations
-        self.depth = cyl_height
-        self.unit = unit
-
-        # Define sections
-        self.sections = []
-        for well_sep, rot_angle in zip(self.well_seps,
-                                       np.arange(0, 360., 360. / self._num_sections)):
-            section = DerenzoSection(self.radius, well_sep)
-            section.apply_rotation(rot_angle)
-            self.sections.append(section)
-
-        # Initialize graphic (values hard-coded for now)
-        self.fig = plt.figure(figsize=(16, 16))
-        self.fig.set_dpi(16)
-        self.ax = self.fig.gca()
-        self.cyl_patch = mpp.Circle((0, 0), radius=self.radius, color='gray',
-                                    alpha=0.3)
-        self.ax.add_patch(self.cyl_patch)
-        self.ax.set_xlim((-1.2*self.radius, 1.2*self.radius))
-        self.ax.set_ylim((-1.2*self.radius, 1.2*self.radius))
-        self.ax.set_axis_off()
-        self.ax.autoscale(enable=True, axis='both', tight=None)
-
-        # Plot well locations from all sections of the phantom
-        for section in self.sections:
-            section.plot_wells(self.fig, self.ax)
-
-    @property
-    def area(self):
-        return np.sum([s.total_area for s in self.sections])
-
-    @property
-    def num_wells(self):
-        return np.sum([s.num_wells for s in self.sections])
-
-    def show(self):
-        self.fig.canvas.draw()
-        plt.show()
+    return ((p[0] - p0[0]) * cos(th) - (p[1] - p0[1]) * sin(th) + p0[0],
+            (p[0] - p0[0]) * sin(th) + (p[1] - p0[1]) * cos(th) + p0[1])
 
 
-class DerenzoSection(object):
+def draw_dot(canvas, p, r, mode='fix', level=1):
+    x, y = np.meshgrid(range(canvas.shape[0]), range(canvas.shape[1]))
+    mask = (x - p[0])**2 + (y - p[1])**2 <= r**2
+    if mode == 'fix':
+        canvas[mask] = level
+    else:
+        canvas[mask] += level
 
-    def __init__(self, phantom_radius, well_separation, section_offset=0.1):
-        self.R = phantom_radius
-        self.well_sep = well_separation
-        self.r = self.well_sep / 2.0
-        self.section_offset = self.R * section_offset
-        # Determine well locations
-        self.place_wells_in_section()
-        # Location for section label
-        self.label_xy = np.array((0, -1.1 * self.R))
 
-    @property
-    def row_height(self):
-        return self.well_sep * np.sqrt(3)
+def draw_section(derenzo_section, canvas, rs, L, R, ind, level=1, th=0):
+    #     ind = 8
+    v_0 = derenzo_section['ver_offset'][ind - 1]
+    h_0 = derenzo_section['hor_offset'][ind - 1]
 
-    @property
-    def num_rows(self):
-        h_section = self.R - (2 * self.section_offset + self.well_sep)
-        return int(np.floor(h_section / self.row_height))
+    f = 0
+    h = L / 2 - R
+    for i in list(reversed(list(range(ind)))):
 
-    @property
-    def num_wells(self):
-        return np.sum(1 + np.arange(self.num_rows))
+        v = f * v_0
+        for _ in range(i + 1):
+            draw_dot(canvas,
+                     rotate((derenzo_section['key_point'][ind - 1][0] + v,
+                             derenzo_section['key_point'][ind - 1][1] + h), th),
+                     rs[ind - 1],
+                     level=level)
+            v = v + 2 * v_0
+        f += 1
+        h += h_0
 
-    @property
-    def well_area(self):
-        return np.pi * self.r**2
 
-    @property
-    def total_area(self):
-        return self.num_wells * self.well_area
+if __name__ == "__main__":
+    import click
 
-    @property
-    def label(self):
-        return "%.1f mm" %(self.well_sep)
 
-    def place_wells_in_section(self):
+    # @click.command()
+    # @click.option('--file')
+    # def run(file):
+    FILE_NAME = '/home/qinglong/node3share/derenzo/4.h5'
+    f = tables.open_file(FILE_NAME, 'w')
 
-        if self.num_rows <= 1:
-            self.section_offset = 0.0
-            if self.num_rows <= 1:
-                warnings.warn(("Cannot fit multiple features in section with "
-                               "feature size = %s" %(self.well_sep)))
-        xs, ys = [], []
-        for i in range(self.num_rows):
-            rn = i + 1
-            for x in np.arange(-rn, rn, 2) + 1:
-                xs.append(x * self.well_sep)
-                ys.append(-(self.section_offset + self.row_height * rn))
-        self.locs = np.vstack((xs, ys)).T
 
-    def apply_rotation(self, deg):
-        """
-        Rotate well locations around central (z) axis by 'deg' degrees.
-        deg > 0: Counter-clockwise | deg < 0: clockwise
-        """
-        self.rot_angle = deg
-        th = -1 * deg * (np.pi / 180)
-        rot_mat = np.array([(np.cos(th), -np.sin(th)),
-                            (np.sin(th),  np.cos(th))])
-        # Rotate well locations
-        self.locs = np.array([np.dot(l, rot_mat) for l in self.locs])
-        # Rotate label location
-        self.label_xy = np.dot(self.label_xy, rot_mat)
+    class Derenzo(IsDescription):
+        derenzo = Float32Col([256, 256])
+        value = Float32Col(2)
 
-    def plot_wells(self, fig, ax):
-        """
-        Plot the well pattern for the given section on the input figure and
-        axis handles.
-        """
-        # Plot wells
-        for xy in self.locs:
-            cyl = mpp.Circle(xy, radius=self.r)
-            ax.add_patch(cyl)
+
+    # derenzo = f.create_group('/', 'derenzo')
+    dd = f.create_table(f.root, 'derenzo', Derenzo, 'Derenzo')
+    derenzo_row = dd.row
+
+    for _ in tqdm(range(10000)):
+
+        canvas = np.zeros([L, L])
+
+        # U(0.0, 1.0)
+        rand1 = np.random.random_sample()
+        rand2 = np.random.random_sample()
+        res = abs(rand1 - rand2)
+
+        # U(1, 19)
+        denerzo_section_rs = np.random.choice(list(range(1, 20)), 6)
+
+        for i, n in zip(list(range(6)), denerzo_section_rs):
+            draw_section(derenzo_section, canvas, rs, L, R, n, level=res, th=i*60)
+        draw_dot(canvas, (L/2, L/2), 1.14*R, mode='append', level=min(rand1, rand2))
+
+        # plt.imshow(block_reduce(canvas, (2, 2), func=np.max))
+        # plt.show()
+        derenzo_row['derenzo'] = block_reduce(canvas, (2, 2), func=np.max)
+        derenzo_row['value'] = (max(rand1, rand2), min(rand1, rand2))
+        derenzo_row.append()
+    f.close()
