@@ -1,8 +1,11 @@
 import numpy as np
+import tables
 import math
 from scipy.misc import imrotate, bytescale
 from scipy.misc import toimage, fromimage
+from tables import IsDescription, Float32Col
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 #                          A    a       b      x0     y0   phi
 shepp_logan = np.array([[  1,  .69,     .92,    0,     0,  0],
@@ -30,38 +33,38 @@ modified_shepp_logan =np.array([[ 1,   .69,   .92,     0,     0,     0],
 
 
 
-def _imrotate(arr, mode, angle, interp='bilinear'):
-    """
-    Rotate an image counter-clockwise by angle degrees.
-    This function is only available if Python Imaging Library (PIL) is installed.
-    .. warning::
-        This function uses `bytescale` under the hood to rescale images to use
-        the full (0, 255) range if ``mode`` is one of ``None, 'L', 'P', 'l'``.
-        It will also cast data for 2-D images to ``uint32`` for ``mode=None``
-        (which is the default).
-    Parameters
-    ----------
-    arr : ndarray
-        Input array of image to be rotated.
-    angle : float
-        The angle of rotation.
-    interp : str, optional
-        Interpolation
-        - 'nearest' :  for nearest neighbor
-        - 'bilinear' : for bilinear
-        - 'lanczos' : for lanczos
-        - 'cubic' : for bicubic
-        - 'bicubic' : for bicubic
-    Returns
-    -------
-    imrotate : ndarray
-        The rotated array of image.
-    """
-    arr = np.asarray(arr)
-    func = {'nearest': 0, 'lanczos': 1, 'bilinear': 2, 'bicubic': 3, 'cubic': 3}
-    im = toimage(arr, mode = mode)
-    im = im.rotate(angle, resample=func[interp])
-    return fromimage(im)
+# def _imrotate(arr, mode, angle, interp='bilinear'):
+#     """
+#     Rotate an image counter-clockwise by angle degrees.
+#     This function is only available if Python Imaging Library (PIL) is installed.
+#     .. warning::
+#         This function uses `bytescale` under the hood to rescale images to use
+#         the full (0, 255) range if ``mode`` is one of ``None, 'L', 'P', 'l'``.
+#         It will also cast data for 2-D images to ``uint32`` for ``mode=None``
+#         (which is the default).
+#     Parameters
+#     ----------
+#     arr : ndarray
+#         Input array of image to be rotated.
+#     angle : float
+#         The angle of rotation.
+#     interp : str, optional
+#         Interpolation
+#         - 'nearest' :  for nearest neighbor
+#         - 'bilinear' : for bilinear
+#         - 'lanczos' : for lanczos
+#         - 'cubic' : for bicubic
+#         - 'bicubic' : for bicubic
+#     Returns
+#     -------
+#     imrotate : ndarray
+#         The rotated array of image.
+#     """
+#     arr = np.asarray(arr)
+#     func = {'nearest': 0, 'lanczos': 1, 'bilinear': 2, 'bicubic': 3, 'cubic': 3}
+#     im = toimage(arr, mode = mode)
+#     im = im.rotate(angle, resample=func[interp])
+#     return fromimage(im)
 
 
 def phantom(*kargs):
@@ -154,3 +157,22 @@ print(intensity)
 
 plt.imshow(np.reshape(phantom1, (256,256)))
 plt.show()
+
+FILE_NAME = '/home/qinglong/node3share/derenzo/S_1.h5'
+f = tables.open_file(FILE_NAME, 'w')
+
+
+class SheppLogans(IsDescription):
+    sheppLogans = Float32Col([256, 256])
+    inten = Float32Col(20)
+
+
+dd = f.create_table(f.root, 'sheppLogans', SheppLogans, 'sheppLogans')
+jaszczak_row = dd.row
+
+for _ in tqdm(range(100000)):
+    phantom1, inten = GenerateSheppLogans(1, 256, 0.1)
+
+    jaszczak_row['sheppLogans'] = np.reshape(phantom1, (256, 256))
+    jaszczak_row['inten'] = np.pad(inten, (0, 20 - len(inten)), 'constant', constant_values=-1)
+    jaszczak_row.append()
